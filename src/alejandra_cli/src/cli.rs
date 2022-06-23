@@ -1,6 +1,6 @@
 #[derive(Clone)]
 pub(crate) struct FormattedPath {
-    pub path:   String,
+    pub path: String,
     pub status: alejandra::format::Status,
 }
 
@@ -77,8 +77,7 @@ pub(crate) fn stdin(quiet: bool) -> FormattedPath {
 
     std::io::stdin().read_to_string(&mut before).unwrap();
 
-    let (status, data) =
-        alejandra::format::in_memory(path.clone(), before.clone());
+    let (status, data) = alejandra::format::in_memory(before.clone());
 
     print!("{}", data);
 
@@ -205,25 +204,25 @@ pub(crate) fn tui(
                                 } else {
                                     paths_unchanged += 1;
                                 }
-                            }
+                            },
                             alejandra::format::Status::Error(_) => {
                                 paths_with_errors += 1;
-                            }
+                            },
                         };
 
                         formatted_paths.push_back(formatted_path);
-                    }
+                    },
                     Event::FormattingFinished => {
                         finished = true;
-                    }
+                    },
                     Event::Input(key) => {
                         if let termion::event::Key::Ctrl('c') = key {
                             return Err(std::io::ErrorKind::Interrupted.into());
                         }
-                    }
+                    },
                     Event::Tick => {
                         break;
-                    }
+                    },
                 }
             }
         }
@@ -296,13 +295,14 @@ pub(crate) fn tui(
                         .bg(tui::style::Color::Black)
                         .fg(tui::style::Color::White),
                 );
-            let logger = tui::widgets::Paragraph::new(
-                formatted_paths
-                    .iter()
-                    .rev()
-                    .take(8)
-                    .map(|formatted_path| {
-                        tui::text::Spans::from(vec![
+            let logger =
+                tui::widgets::Paragraph::new(
+                    formatted_paths
+                        .iter()
+                        .rev()
+                        .take(8)
+                        .map(|formatted_path| {
+                            tui::text::Spans::from(vec![
                             match formatted_path.status {
                                 alejandra::format::Status::Changed(
                                     changed,
@@ -329,14 +329,14 @@ pub(crate) fn tui(
                             },
                             tui::text::Span::raw(formatted_path.path.clone()),
                         ])
-                    })
-                    .collect::<Vec<tui::text::Spans>>(),
-            )
-            .style(
-                tui::style::Style::default()
-                    .bg(tui::style::Color::Black)
-                    .fg(tui::style::Color::White),
-            );
+                        })
+                        .collect::<Vec<tui::text::Spans>>(),
+                )
+                .style(
+                    tui::style::Style::default()
+                        .bg(tui::style::Color::Black)
+                        .fg(tui::style::Color::White),
+                );
 
             frame.render_widget(header, sizes[0]);
             frame.render_widget(progress, sizes[1]);
@@ -380,7 +380,7 @@ pub fn main() -> std::io::Result<()> {
             } else {
                 crate::cli::simple(paths, in_place, quiet)
             }
-        }
+        },
         None => vec![crate::cli::stdin(quiet)],
     };
 
@@ -413,9 +413,11 @@ pub fn main() -> std::io::Result<()> {
 
     let changed = formatted_paths
         .iter()
-        .filter(|formatted_path| match formatted_path.status {
-            alejandra::format::Status::Changed(changed) => changed,
-            _ => false,
+        .filter(|formatted_path| {
+            match formatted_path.status {
+                alejandra::format::Status::Changed(changed) => changed,
+                _ => false,
+            }
         })
         .count();
 

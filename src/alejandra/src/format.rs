@@ -1,3 +1,14 @@
+use std::rc::Rc;
+
+use nixel::cst::build_concrete_syntax_tree;
+use nixel::deps::santiago::lexer::lex;
+use nixel::deps::santiago::lexer::Lexeme;
+use nixel::deps::santiago::parser::parse;
+use nixel::grammar::grammar;
+use nixel::lexer::lexer_rules;
+
+use crate::formatter::Formatter;
+
 #[derive(Clone)]
 pub enum Status {
     Error(String),
@@ -10,27 +21,59 @@ impl From<std::io::Error> for Status {
     }
 }
 
-pub fn in_memory(path: String, before: String) -> (Status, String) {
-    let tokens = rnix::tokenizer::Tokenizer::new(&before);
-    let ast = rnix::parser::parse(tokens);
-
-    let errors = ast.errors();
-    if !errors.is_empty() {
-        return (Status::Error(errors[0].to_string()), before);
-    }
-
-    let mut build_ctx = crate::builder::BuildCtx {
-        force_wide: false,
-        force_wide_success: true,
-        indentation: 0,
-        path,
-        pos_old: crate::position::Position::default(),
-        vertical: true,
+pub fn in_memory(before: String) -> (Status, String) {
+    let grammar = grammar();
+    let lexer_rules = lexer_rules();
+    let lexemes = match lex(&lexer_rules, &before) {
+        Ok(lexemes) => lexemes,
+        Err(error) => {
+            return (
+                Status::Error(format!(
+                    "At {}: {}",
+                    error.position, error.message,
+                )),
+                before,
+            );
+        },
     };
 
-    let after = crate::builder::build(&mut build_ctx, ast.node().into())
-        .unwrap()
-        .to_string();
+    let lexemes_no_trivia: Vec<Rc<Lexeme>> = lexemes
+        .iter()
+        .filter(|lexeme| &lexeme.kind != "COMMENT")
+        .filter(|lexeme| &lexeme.kind != "WS")
+        .cloned()
+        .collect();
+
+    let parse_tree = match parse(&grammar, &lexemes_no_trivia) {
+        Ok(mut parse_tree) => {
+            if parse_tree.len() == 1 {
+                parse_tree.remove(0)
+            } else {
+                return (
+                    Status::Error(format!("Multiple parse trees found.")),
+                    before,
+                );
+            }
+        },
+        Err(error) => {
+            return (
+                Status::Error(if let Some(at) = error.at {
+                    format!("At {at}: Invalid Syntax")
+                } else {
+                    format!("Invalid Syntax")
+                }),
+                before,
+            );
+        },
+    };
+
+    let ast = parse_tree.as_abstract_syntax_tree();
+    let cst = build_concrete_syntax_tree(&ast, &lexemes);
+
+    let mut formatter = Formatter::new(false, false);
+    formatter.format(cst).unwrap();
+
+    let after = formatter.finish();
 
     if before == after {
         (Status::Changed(false), after)
@@ -44,7 +87,7 @@ pub fn in_fs(path: String, in_place: bool) -> Status {
 
     match std::fs::read_to_string(&path) {
         Ok(before) => {
-            let (status, data) = crate::format::in_memory(path.clone(), before);
+            let (status, data) = crate::format::in_memory(before);
 
             match status {
                 Status::Changed(changed) => {
@@ -56,7 +99,7 @@ pub fn in_fs(path: String, in_place: bool) -> Status {
                                         Ok(_) => Status::Changed(true),
                                         Err(error) => Status::from(error),
                                     }
-                                }
+                                },
                                 Err(error) => Status::from(error),
                             }
                         } else {
@@ -65,10 +108,10 @@ pub fn in_fs(path: String, in_place: bool) -> Status {
                     } else {
                         Status::Changed(changed)
                     }
-                }
+                },
                 Status::Error(error) => Status::Error(error),
             }
-        }
+        },
         Err(error) => Status::from(error),
     }
 }

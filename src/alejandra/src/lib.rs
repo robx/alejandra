@@ -27,12 +27,9 @@
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-pub(crate) mod builder;
-pub(crate) mod children;
-pub(crate) mod children2;
 pub mod format;
-pub(crate) mod parsers;
-pub(crate) mod position;
-pub(crate) mod rules;
+pub(crate) mod formatter;
+pub(crate) mod formatting_rules;
+pub(crate) mod trivia;
 pub(crate) mod utils;
 pub mod version;

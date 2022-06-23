@@ -15,9 +15,11 @@ fn nix_files_in_path(path: &&str) -> std::collections::HashSet<String> {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_entry(is_nix_file_or_dir)
-        .filter_map(|entry| match entry {
-            Ok(entry) => Some(entry),
-            Err(_) => None,
+        .filter_map(|entry| {
+            match entry {
+                Ok(entry) => Some(entry),
+                Err(_) => None,
+            }
         })
         .filter(is_nix_file)
         .map(to_full_path)
