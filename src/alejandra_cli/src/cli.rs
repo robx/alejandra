@@ -39,9 +39,9 @@ struct Args {
     #[clap(long, short)]
     threads: Option<usize>,
 
-    /// Hide the details, only show error messages.
+    /// Verbose.
     #[clap(long, short)]
-    quiet: bool,
+    verbose: bool,
 }
 
 pub(crate) fn stdin(quiet: bool) -> FormattedPath {
@@ -339,19 +339,19 @@ pub fn main() -> std::io::Result<()> {
 
     let formatted_paths = match &include[..] {
         &[] | &["-"] => {
-            vec![crate::cli::stdin(args.quiet)]
+            vec![crate::cli::stdin(!args.verbose)]
         }
         include => {
             let paths = crate::find::nix_files(include, &args.exclude);
 
-            if !args.quiet
+            if args.verbose
                 && atty::is(atty::Stream::Stderr)
                 && atty::is(atty::Stream::Stdin)
                 && atty::is(atty::Stream::Stdout)
             {
                 crate::cli::tui(paths, in_place)?
             } else {
-                crate::cli::simple(paths, in_place, args.quiet)
+                crate::cli::simple(paths, in_place, !args.verbose)
             }
         }
     };
@@ -389,7 +389,7 @@ pub fn main() -> std::io::Result<()> {
         .count();
 
     if changed > 0 {
-        if !args.quiet {
+        if args.verbose {
             eprintln!();
             eprintln!(
                 "Success! {} file{} {}",
@@ -406,7 +406,7 @@ pub fn main() -> std::io::Result<()> {
         std::process::exit(if in_place { 0 } else { 2 });
     }
 
-    if !args.quiet {
+    if args.verbose {
         eprintln!();
         eprintln!("Success! Your code complies the Alejandra style");
     }
